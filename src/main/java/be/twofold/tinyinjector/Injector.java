@@ -12,31 +12,49 @@ public final class Injector {
     private static final int INSTANTIATING = 1;
     private static final int FINISHED = 2;
 
-    public <T> T getInstance(Class<T> clazz) {
-        return getInstance(clazz, new IdentityHashMap<>());
+    private final Map<Class<?>, Provider<?>> providers = new IdentityHashMap<>();
+
+    public <T> Injector bindProvider(Class<T> type, Provider<? extends T> provider) {
+        Objects.requireNonNull(type, "type");
+        Objects.requireNonNull(provider, "provider");
+
+        if (providers.containsKey(type)) {
+            throw new IllegalArgumentException("Provider for " + type + " already bound");
+        }
+
+        providers.put(type, provider);
+        return this;
     }
 
-    private <T> T getInstance(Class<T> clazz, Map<Class<?>, Integer> visited) {
-        if (visited.getOrDefault(clazz, UNKNOWN) == INSTANTIATING) {
+    @SuppressWarnings("unchecked")
+    public <T> T getInstance(Class<T> type) {
+        Objects.requireNonNull(type, "type");
+
+        if (providers.containsKey(type)) {
+            return (T) providers.get(type).get();
+        }
+
+        return getInstance(type, new IdentityHashMap<>());
+    }
+
+    private <T> T getInstance(Class<T> type, Map<Class<?>, Integer> visited) {
+        if (visited.getOrDefault(type, UNKNOWN) == INSTANTIATING) {
             throw new IllegalArgumentException("Circular dependency found!");
         }
-        visited.put(clazz, INSTANTIATING);
+        visited.put(type, INSTANTIATING);
 
-        Constructor<T> constructor = getConstructor(clazz);
-
+        Constructor<T> constructor = getConstructor(type);
         Object[] arguments = Arrays.stream(constructor.getParameters())
-            .map(parameter -> (Object) getInstance(parameter.getType(), visited))
+            .map(parameter -> getInstance(parameter.getType(), visited))
             .toArray();
 
         try {
             T instance = constructor.newInstance(arguments);
-            visited.put(clazz, FINISHED); // Successfully instantiated the class
+            visited.put(type, FINISHED);
             return instance;
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new IllegalArgumentException("Something went wrong", e);
         }
-
-        throw new IllegalArgumentException("Something went wrong :-(");
     }
 
     @SuppressWarnings("unchecked")

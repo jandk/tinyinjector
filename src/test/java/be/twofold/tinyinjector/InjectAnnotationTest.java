@@ -5,7 +5,7 @@ import org.junit.jupiter.api.*;
 
 import static org.assertj.core.api.Assertions.*;
 
-public class InjectAnnotationTest {
+class InjectAnnotationTest {
 
     private final Injector injector = new Injector();
 
