@@ -105,21 +105,4 @@ public final class Injector {
         }
     }
 
-    private static final class SingletonProvider<T> implements Provider<T> {
-        private final Provider<? extends T> provider;
-        private T instance;
-
-        public SingletonProvider(Provider<? extends T> provider) {
-            this.provider = provider;
-        }
-
-        @Override
-        public T get() {
-            if (instance == null) {
-                instance = provider.get();
-            }
-            return instance;
-        }
-    }
-
 }
