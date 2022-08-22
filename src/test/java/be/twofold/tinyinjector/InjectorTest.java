@@ -4,13 +4,16 @@ import org.junit.jupiter.api.*;
 
 import static org.assertj.core.api.Assertions.*;
 
-class CyclicDependencyTest {
+class InjectorTest {
+
+    private final Injector injector = new Injector();
 
     @Test
-    void testCyclicDependencies() {
-        assertThatIllegalStateException()
-            .isThrownBy(() -> new Injector().getInstance(A.class))
-            .withMessage("Circular dependency found!");
+    void testInstantiation() {
+        A instance = injector.getInstance(A.class);
+        assertThat(instance).isNotNull();
+        assertThat(instance.b).isNotNull();
+        assertThat(instance.b.c).isNotNull();
     }
 
     @SuppressWarnings("FieldCanBeLocal")
@@ -33,10 +36,7 @@ class CyclicDependencyTest {
 
     @SuppressWarnings("FieldCanBeLocal")
     static final class C {
-        private final A a;
-
-        public C(A a) {
-            this.a = a;
+        public C() {
         }
     }
 

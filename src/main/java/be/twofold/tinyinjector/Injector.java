@@ -5,27 +5,29 @@ import java.util.*;
 
 public final class Injector {
 
-    private final Set<Class<?>> requestedClasses = new HashSet<>();
-    private final Set<Class<?>> instantiableClasses = new HashSet<>();
+    private static final int UNKNOWN = 0;
+    private static final int INSTANTIATING = 1;
+    private static final int FINISHED = 2;
 
     public <T> T getInstance(Class<T> clazz) {
+        return getInstance(clazz, new IdentityHashMap<>());
+    }
+
+    private <T> T getInstance(Class<T> clazz, Map<Class<?>, Integer> visited) {
+        if (visited.getOrDefault(clazz, UNKNOWN) == INSTANTIATING) {
+            throw new IllegalStateException("Circular dependency found!");
+        }
+        visited.put(clazz, INSTANTIATING);
+
         Constructor<T> constructor = getConstructor(clazz);
 
-        if (requestedClasses.contains(clazz)) {
-            if (!instantiableClasses.contains(clazz)) {
-                throw new IllegalStateException("Circular dependency found!");
-            }
-        } else {
-            requestedClasses.add(clazz);
-        }
-
         Object[] arguments = Arrays.stream(constructor.getParameters())
-            .map(parameter -> (Object) getInstance(parameter.getType()))
+            .map(parameter -> (Object) getInstance(parameter.getType(), visited))
             .toArray();
 
         try {
             T instance = constructor.newInstance(arguments);
-            instantiableClasses.add(clazz); // mark the class as successfully instantiable.
+            visited.put(clazz, FINISHED); // Successfully instantiated the class
             return instance;
         } catch (Exception e) {
             e.printStackTrace();
