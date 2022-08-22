@@ -18,7 +18,11 @@ public final class Injector {
         Objects.requireNonNull(type, "type");
         Objects.requireNonNull(implementationType, "implementationType");
 
-        return bindProvider(type, () -> getInstance(implementationType));
+        Provider<T> provider = () -> getInstance(implementationType);
+        if (implementationType.isAnnotationPresent(Singleton.class)) {
+            provider = new SingletonProvider<>(provider);
+        }
+        return bindProvider(type, provider);
     }
 
     public <T> Injector bindInstance(Class<T> type, T instance) {
@@ -46,6 +50,7 @@ public final class Injector {
         return getInstance(type, new IdentityHashMap<>());
     }
 
+    @SuppressWarnings("unchecked")
     private <T> T getInstance(Class<T> type, Map<Class<?>, Integer> visited) {
         if (visited.getOrDefault(type, UNKNOWN) == INSTANTIATING) {
             throw new IllegalArgumentException("Circular dependency found!");
@@ -73,8 +78,8 @@ public final class Injector {
     }
 
     @SuppressWarnings("unchecked")
-    private <T> Constructor<T> getConstructor(Class<T> clazz) {
-        Constructor<T>[] constructors = (Constructor<T>[]) clazz.getConstructors();
+    private <T> Constructor<T> getConstructor(Class<T> type) {
+        Constructor<T>[] constructors = (Constructor<T>[]) type.getConstructors();
         switch (constructors.length) {
             case 0:
                 throw new IllegalArgumentException("No public constructor found");
@@ -97,6 +102,23 @@ public final class Injector {
                 return annotatedConstructors.get(0);
             default:
                 throw new IllegalArgumentException("Multiple public @Inject annotated constructors found");
+        }
+    }
+
+    private static final class SingletonProvider<T> implements Provider<T> {
+        private final Provider<? extends T> provider;
+        private T instance;
+
+        public SingletonProvider(Provider<? extends T> provider) {
+            this.provider = provider;
+        }
+
+        @Override
+        public T get() {
+            if (instance == null) {
+                instance = provider.get();
+            }
+            return instance;
         }
     }
 
