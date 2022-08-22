@@ -18,8 +18,14 @@ public final class Injector {
         Objects.requireNonNull(type, "type");
         Objects.requireNonNull(implementationType, "implementationType");
 
-        Constructor<? extends T> constructor = getConstructor(implementationType);
-        return bindProvider(type, () -> construct(constructor, new IdentityHashMap<>()));
+        return bindProvider(type, () -> getInstance(implementationType));
+    }
+
+    public <T> Injector bindInstance(Class<T> type, T instance) {
+        Objects.requireNonNull(type, "type");
+        Objects.requireNonNull(instance, "instance");
+
+        return bindProvider(type, () -> instance);
     }
 
     public <T> Injector bindProvider(Class<T> type, Provider<? extends T> provider) {
@@ -38,11 +44,9 @@ public final class Injector {
     public <T> T getInstance(Class<T> type) {
         Objects.requireNonNull(type, "type");
 
-        if (providers.containsKey(type)) {
-            return (T) providers.get(type).get();
-        }
-
-        return getInstance(type, new IdentityHashMap<>());
+        return (T) providers
+            .getOrDefault(type, () -> getInstance(type, new IdentityHashMap<>()))
+            .get();
     }
 
     private <T> T getInstance(Class<T> type, Map<Class<?>, Integer> visited) {
@@ -51,18 +55,15 @@ public final class Injector {
         }
         visited.put(type, INSTANTIATING);
 
-        T instance = construct(getConstructor(type), visited);
-        visited.put(type, FINISHED);
-        return instance;
-    }
-
-    private <T> T construct(Constructor<T> constructor, Map<Class<?>, Integer> visited) {
+        Constructor<T> constructor = getConstructor(type);
         Object[] arguments = Arrays.stream(constructor.getParameters())
             .map(parameter -> getInstance(parameter.getType(), visited))
             .toArray();
 
         try {
-            return constructor.newInstance(arguments);
+            T instance = constructor.newInstance(arguments);
+            visited.put(type, FINISHED);
+            return instance;
         } catch (Exception e) {
             throw new IllegalArgumentException("Something went wrong", e);
         }
