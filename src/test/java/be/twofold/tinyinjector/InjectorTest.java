@@ -17,6 +17,28 @@ class InjectorTest {
     }
 
     @Test
+    void testBindThrowsOnNull() {
+        assertThatNullPointerException()
+            .isThrownBy(() -> injector.bind(null, A.class));
+        assertThatNullPointerException()
+            .isThrownBy(() -> injector.bind(A.class, null));
+    }
+
+    @Test
+    void testBindThrowsOnAlreadyBound() {
+        injector.bind(A.class, D.class);
+        assertThatIllegalArgumentException()
+            .isThrownBy(() -> injector.bind(A.class, D.class));
+    }
+
+    @Test
+    void testBind() {
+        injector.bind(A.class, D.class);
+        assertThat(injector.getInstance(A.class))
+            .isInstanceOf(D.class);
+    }
+
+    @Test
     void testProviderThrowsOnNull() {
         assertThatNullPointerException()
             .isThrownBy(() -> injector.bindProvider(Object.class, null));
@@ -39,7 +61,7 @@ class InjectorTest {
     }
 
     @SuppressWarnings("FieldCanBeLocal")
-    static final class A {
+    static class A {
         private final B b;
 
         public A(B b) {
@@ -48,7 +70,7 @@ class InjectorTest {
     }
 
     @SuppressWarnings("FieldCanBeLocal")
-    static final class B {
+    static class B {
         private final C c;
 
         public B(C c) {
@@ -57,8 +79,14 @@ class InjectorTest {
     }
 
     @SuppressWarnings("FieldCanBeLocal")
-    static final class C {
+    static class C {
         public C() {
+        }
+    }
+
+    static class D extends A {
+        public D(B b) {
+            super(b);
         }
     }
 

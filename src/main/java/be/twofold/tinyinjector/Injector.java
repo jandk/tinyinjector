@@ -14,6 +14,14 @@ public final class Injector {
 
     private final Map<Class<?>, Provider<?>> providers = new IdentityHashMap<>();
 
+    public <T> Injector bind(Class<T> type, Class<? extends T> implementationType) {
+        Objects.requireNonNull(type, "type");
+        Objects.requireNonNull(implementationType, "implementationType");
+
+        Constructor<? extends T> constructor = getConstructor(implementationType);
+        return bindProvider(type, () -> construct(constructor, new IdentityHashMap<>()));
+    }
+
     public <T> Injector bindProvider(Class<T> type, Provider<? extends T> provider) {
         Objects.requireNonNull(type, "type");
         Objects.requireNonNull(provider, "provider");
@@ -43,15 +51,18 @@ public final class Injector {
         }
         visited.put(type, INSTANTIATING);
 
-        Constructor<T> constructor = getConstructor(type);
+        T instance = construct(getConstructor(type), visited);
+        visited.put(type, FINISHED);
+        return instance;
+    }
+
+    private <T> T construct(Constructor<T> constructor, Map<Class<?>, Integer> visited) {
         Object[] arguments = Arrays.stream(constructor.getParameters())
             .map(parameter -> getInstance(parameter.getType(), visited))
             .toArray();
 
         try {
-            T instance = constructor.newInstance(arguments);
-            visited.put(type, FINISHED);
-            return instance;
+            return constructor.newInstance(arguments);
         } catch (Exception e) {
             throw new IllegalArgumentException("Something went wrong", e);
         }
