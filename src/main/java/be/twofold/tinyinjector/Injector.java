@@ -2,22 +2,14 @@ package be.twofold.tinyinjector;
 
 import java.lang.reflect.*;
 import java.util.*;
-import java.util.stream.*;
 
 public final class Injector {
 
     private final Set<Class<?>> requestedClasses = new HashSet<>();
     private final Set<Class<?>> instantiableClasses = new HashSet<>();
 
-    @SuppressWarnings("unchecked")
     public <T> T getInstance(Class<T> clazz) {
-        Constructor<T>[] constructors = (Constructor<T>[]) clazz.getConstructors();
-
-        if (constructors.length != 1) {
-            throw new IllegalStateException("Only one constructor allowed!");
-        }
-
-        Constructor<T> constructor = constructors[0];
+        Constructor<T> constructor = getConstructor(clazz);
 
         if (requestedClasses.contains(clazz)) {
             if (!instantiableClasses.contains(clazz)) {
@@ -27,12 +19,12 @@ public final class Injector {
             requestedClasses.add(clazz);
         }
 
-        List<Object> arguments = Arrays.stream(constructor.getParameters())
+        Object[] arguments = Arrays.stream(constructor.getParameters())
             .map(parameter -> (Object) getInstance(parameter.getType()))
-            .collect(Collectors.toList());
+            .toArray();
 
         try {
-            T instance = constructor.newInstance(arguments.toArray());
+            T instance = constructor.newInstance(arguments);
             instantiableClasses.add(clazz); // mark the class as successfully instantiable.
             return instance;
         } catch (Exception e) {
@@ -40,6 +32,16 @@ public final class Injector {
         }
 
         throw new IllegalStateException("Something went wrong :-(");
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> Constructor<T> getConstructor(Class<T> clazz) {
+        Constructor<T>[] constructors = (Constructor<T>[]) clazz.getConstructors();
+        if (constructors.length != 1) {
+            throw new IllegalStateException("Only one constructor allowed!");
+        }
+
+        return constructors[0];
     }
 
 }
