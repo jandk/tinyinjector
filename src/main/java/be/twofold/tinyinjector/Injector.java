@@ -40,13 +40,10 @@ public final class Injector {
         return this;
     }
 
-    @SuppressWarnings("unchecked")
     public <T> T getInstance(Class<T> type) {
         Objects.requireNonNull(type, "type");
 
-        return (T) providers
-            .getOrDefault(type, () -> getInstance(type, new IdentityHashMap<>()))
-            .get();
+        return getInstance(type, new IdentityHashMap<>());
     }
 
     private <T> T getInstance(Class<T> type, Map<Class<?>, Integer> visited) {
@@ -54,6 +51,12 @@ public final class Injector {
             throw new IllegalArgumentException("Circular dependency found!");
         }
         visited.put(type, INSTANTIATING);
+
+        if (providers.containsKey(type)) {
+            T instance = (T) providers.get(type).get();
+            visited.put(type, FINISHED);
+            return instance;
+        }
 
         Constructor<T> constructor = getConstructor(type);
         Object[] arguments = Arrays.stream(constructor.getParameters())
