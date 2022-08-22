@@ -8,7 +8,7 @@ class CircularDependencyTest {
 
     @Test
     void testCyclicDependencies() {
-        assertThatIllegalStateException()
+        assertThatIllegalArgumentException()
             .isThrownBy(() -> new Injector().getInstance(A.class))
             .withMessage("Circular dependency found!");
     }

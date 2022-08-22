@@ -1,7 +1,10 @@
 package be.twofold.tinyinjector;
 
+import jakarta.inject.*;
+
 import java.lang.reflect.*;
 import java.util.*;
+import java.util.stream.*;
 
 public final class Injector {
 
@@ -15,7 +18,7 @@ public final class Injector {
 
     private <T> T getInstance(Class<T> clazz, Map<Class<?>, Integer> visited) {
         if (visited.getOrDefault(clazz, UNKNOWN) == INSTANTIATING) {
-            throw new IllegalStateException("Circular dependency found!");
+            throw new IllegalArgumentException("Circular dependency found!");
         }
         visited.put(clazz, INSTANTIATING);
 
@@ -33,17 +36,35 @@ public final class Injector {
             e.printStackTrace();
         }
 
-        throw new IllegalStateException("Something went wrong :-(");
+        throw new IllegalArgumentException("Something went wrong :-(");
     }
 
     @SuppressWarnings("unchecked")
     private <T> Constructor<T> getConstructor(Class<T> clazz) {
         Constructor<T>[] constructors = (Constructor<T>[]) clazz.getConstructors();
-        if (constructors.length != 1) {
-            throw new IllegalStateException("Only one constructor allowed!");
+        switch (constructors.length) {
+            case 0:
+                throw new IllegalArgumentException("No public constructor found");
+            case 1:
+                return constructors[0];
+            default:
+                return getAnnotatedConstructor(constructors);
         }
+    }
 
-        return constructors[0];
+    private <T> Constructor<T> getAnnotatedConstructor(Constructor<T>[] constructors) {
+        List<Constructor<T>> annotatedConstructors = Arrays.stream(constructors)
+            .filter(constructor -> constructor.isAnnotationPresent(Inject.class))
+            .collect(Collectors.toList());
+
+        switch (annotatedConstructors.size()) {
+            case 0:
+                throw new IllegalArgumentException("Multiple public constructors found");
+            case 1:
+                return annotatedConstructors.get(0);
+            default:
+                throw new IllegalArgumentException("Multiple public @Inject annotated constructors found");
+        }
     }
 
 }
