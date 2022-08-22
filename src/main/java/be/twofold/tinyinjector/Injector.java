@@ -13,7 +13,7 @@ public final class Injector {
 
         if (requestedClasses.contains(clazz)) {
             if (!instantiableClasses.contains(clazz)) {
-                throw new IllegalStateException("");
+                throw new IllegalStateException("Circular dependency found!");
             }
         } else {
             requestedClasses.add(clazz);
